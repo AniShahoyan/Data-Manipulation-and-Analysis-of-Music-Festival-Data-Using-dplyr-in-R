@@ -1,9 +1,3 @@
----
-title: "homework 9"
-author: "Ani Shahoyan"
-date: "2025-05-05"
-output: pdf_document
----
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
