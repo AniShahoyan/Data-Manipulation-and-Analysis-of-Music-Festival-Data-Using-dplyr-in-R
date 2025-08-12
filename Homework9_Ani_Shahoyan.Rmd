@@ -1,0 +1,273 @@
+---
+title: "homework 9"
+author: "Ani Shahoyan"
+date: "2025-05-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(collapse = T, comment = "#>")
+options(tibble.print_max = 4L)
+set.seed(42)
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+```
+
+Vectors
+
+```{r}
+# Names of artists
+artistNames <- c("Garik Papoyan", "Iveta Mukuchyan", "Tatul Avoyan", "Lav eli", "Aram mp3", "Nemra", "Brunette")
+
+# Names of event locations
+eventLocations <- c("Karen Demirchyan concerts complex", "Hrazdan stadium", "Hard Rock cafe", "Republic square")
+
+# Types of merchandise
+merchTypes <- c("T-shirt", "Poster", "Hat", "Braclet", "key chain")
+
+```
+
+MATRIX - Artist Ratings
+
+```{r}
+# Create a matrix where rows = artists, columns = events, values = random ratings
+artistRatings <- matrix(sample(1:10, 14, replace = TRUE), nrow = 7, ncol = 4,
+                        dimnames = list(artistNames, eventLocations))
+```
+
+ARRAY - Merchandise Sales
+
+```{r}
+# 3D Array: merchTypes x eventLocations x 2 (Price and Quantity)
+# We'll simulate this with some sample data
+priceLayer <- matrix((sample(10:50, 20, replace = TRUE))*100, nrow = 5)
+quantityLayer <- matrix(sample(50:200, 20, replace = TRUE), nrow = 5)
+merchSales <- array(c(priceLayer, quantityLayer),
+                    dim = c(5, 4, 2),
+                    dimnames = list(merchTypes, eventLocations, c("Price", "Quantity")))
+
+```
+
+
+DATA FRAMES
+```{r}
+
+# Attendee data frame
+dfAttendees <- data.frame(
+  attendeeID = 1:6,
+  name = c("Ani", "Narek", "Alla", "Sergey", "Eva", "Irina"),
+  eventAttended = sample(eventLocations, 6, replace = TRUE)
+)
+dfAttendees$age <- sample(18:60, size = nrow(dfAttendees), replace = TRUE)
+
+
+# Events data frame
+dfEvents <- data.frame(
+  location = eventLocations,
+  date = as.Date(c("2025-07-10", "2025-07-12", "2025-07-15", "2025-08-14"))
+)
+
+# Convert artistRatings matrix to data frame
+dfArtistRatings <- as.data.frame(artistRatings)
+dfArtistRatings <- dfArtistRatings %>%
+  mutate(Artist = rownames(dfArtistRatings)) %>%
+  relocate(Artist)
+
+# Convert merchSales array to a tidy data frame
+dfMerchSales <- as.data.frame.table(merchSales)
+colnames(dfMerchSales) <- c("MerchType", "EventLocation", "Type", "Value")
+
+# Pivot the merch data so we have one row per merch-item-event with separate columns
+dfMerchSales <- dfMerchSales %>%
+  pivot_wider(names_from = Type, values_from = Value)
+
+# Preview results
+dfAttendees
+dfEvents
+dfArtistRatings
+dfMerchSales
+```
+Part2: Main Objective
+
+Tasks
+1) Find which artist received the highest overall average rating.
+```{r}
+artist_avg_rating <- dfArtistRatings %>%
+  rowwise() %>%
+  mutate(AverageRating = mean(c_across(-Artist))) %>%
+  ungroup() %>%
+  arrange(desc(AverageRating))
+
+# Extract only the name of the artist with the highest average rating
+highest_avg_artist <- artist_avg_rating %>%
+  slice(1) %>%
+  pull(Artist)
+
+#the name of the artist
+highest_avg_artist
+
+
+```
+
+2) Count the total number of attendees for each event location.
+``` {r}
+attendee_counts <- dfAttendees %>%
+  group_by(eventAttended) %>%
+  summarize(TotalAttendees = n())
+
+attendee_counts
+
+```
+3) Calculate the average age of attendees at each event location.
+```{r}
+attendee_avg_age <- dfAttendees %>%
+  group_by(eventAttended) %>%
+  summarize(AverageAge = mean(age))
+
+attendee_avg_age 
+
+```
+4) Determine the event with the highest total merchandise sales by quantity.
+```{r}
+highest_quantity_event <- dfMerchSales %>%
+  group_by(EventLocation) %>%
+  summarize(TotalQuantity = sum(Quantity)) %>%
+  arrange(desc(TotalQuantity)) %>%
+  slice(1)
+
+highest_quantity_event
+ 
+```
+5) Compute the average price of each type of merchandise across all events.
+```{r}
+avg_price_merch <- dfMerchSales %>%
+  group_by(MerchType) %>%
+  summarize(Avg_price = mean(Price))
+
+avg_price_merch
+```
+6) Identify the event with the highest average artist rating.
+```{r}
+#all rating columns (exclude Artist) and compute column-wise means
+event_avg_ratings <- dfArtistRatings %>%
+  select(-Artist) %>%
+  summarise(across(everything(), mean))
+
+#the event with the highest average rating
+event_with_highest_avg <- names(event_avg_ratings)[which.max(event_avg_ratings)]
+
+event_with_highest_avg
+
+```
+7) List the merchandise types whose average price exceeds 2500(I changed it because my data is in drams).
+```{r}
+merch_over_2500_names <- avg_price_merch %>%
+  filter(Avg_price > 2500) %>%
+  select(MerchType)
+
+merch_over_2500_names
+
+
+```
+
+8) Calculate the total revenue generated from merchandise sales at each event.
+```{r}
+total_revenue <- dfMerchSales %>%
+  group_by(EventLocation) %>%
+  summarize(Total = sum(Price*Quantity))
+
+total_revenue
+```
+9) Assess which type of merchandise had the highest variability in pricing across events.
+```{r}
+price_variability <- dfMerchSales %>%
+  group_by(MerchType) %>%
+  summarize(PriceSD = sd(Price)) %>%
+  arrange(desc(PriceSD))  # Sort in descending order to get the highest variability
+
+price_variability$MerchType[1]
+
+```
+10) Establish which event had the lowest attendance.
+
+```{r}
+lowest_attendance_event <- attendee_counts %>%
+  filter(TotalAttendees == min(TotalAttendees))
+
+lowest_attendance_event$eventAttended[1]
+
+```
+11) Analyze the age distribution of attendees and find the event with the oldest average attendee age.
+```{r}
+age_distribution <- dfAttendees %>%
+  group_by(eventAttended) %>%
+  summarize(
+    AverageAge = mean(age),
+    MedianAge = median(age),
+    MinAge = min(age),
+    MaxAge = max(age),
+    AgeSD = sd(age),
+    Count = n()
+  ) %>%
+  arrange(desc(AverageAge))
+
+# full distribution summary (first part of problem)
+age_distribution
+
+# the event with the oldest average age (second part of problem)
+age_distribution[1, ]$eventAttended[1]
+
+
+```
+12) Determine the correlation between merchandise prices and quantities sold for each type of merchandise.
+```{r}
+merch_correlation <- dfMerchSales %>%
+  group_by(MerchType) %>%
+  summarize(Correlation = cor(Price, Quantity))
+
+merch_correlation
+```
+13) Identify the artist with the most consistent ratings across all events.
+``` {r}
+# standard deviation of ratings for each artist
+artist_consistency <- dfArtistRatings %>%
+  rowwise() %>%
+  mutate(RatingSD = sd(c_across(-Artist))) %>%
+  ungroup() %>%
+  arrange(RatingSD)
+
+# the most consistent artist (lowest standard deviation)
+most_consistent_artist <- artist_consistency %>%
+  slice(1) %>%
+  pull(Artist)
+
+most_consistent_artist
+```
+14) Compute the total number of merchandise items sold per event.
+``` {r}
+
+Items_sold <- dfMerchSales %>%
+  group_by(EventLocation) %>%
+  summarise(total_num = sum(Quantity))
+Items_sold
+  
+```
+15) Evaluate which event location featured the most diverse range of merchandise based on types sold.
+```{r}
+diverse_merch_events <- dfMerchSales %>%
+  group_by(EventLocation) %>%
+  summarize(DiverseMerchTypes = n_distinct(MerchType)) %>%  
+  arrange(desc(DiverseMerchTypes))      
+
+# Get the name of the event with the most diverse merchandise
+most_diverse_event <- diverse_merch_events %>%
+  slice(1) %>%  
+  pull(EventLocation) 
+
+most_diverse_event
+
+```
